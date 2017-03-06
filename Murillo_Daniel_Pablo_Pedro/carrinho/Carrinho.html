@@ -1,0 +1,231 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+	<title> Classe Carrinho </title>
+	<script src="lib/prototype/prototype.js" type="text/javascript"></script>
+	<script src="lib/scriptaculous/scriptaculous.js" type="text/javascript"></script>
+		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+	<style type="text/css">
+	body {background-color:#fff; font-family:verdana; font-size:10px;}
+	#loja {text-align:center;  }
+	h1 {font-family:verdana; font-size:12px;}
+	#pedidos
+	{
+		background: url(carrinho_nok.png) no-repeat;
+		width:100px;
+		text-align: center;
+		border:3px solid #000;		
+		float:left;
+	}
+	#pedidos div{border:1px solid #000;cursor:pointer;}
+	.item {width: 130px; cursor:move; margin-left:1px; float:left;}
+	.itemDrag {background:lime!important;}
+	
+	.itempego { height:50px; }
+	
+	.item img { height:50px; }
+	
+	#carrinho {background: url(carrinho_ok.png) no-repeat ;  width:30%; border:4px solid lime; height:35px; padding-left:50px;}
+	#total {font-family:verdana; font-size:16px;}
+</style>
+		<title></title>
+	</head>
+	<body>
+	<H1>Valor todas de suas compras : <div id="total">R$ 0.00</div></H1>
+	<div id="carrinho" ><h1>Arraste seu produto para dentro do carrinho</h1></div>
+	<div id="pedidos"></div>
+	<div id="loja"></div>			
+	<script type="text/javascript">
+	
+	var Carrinho = new Class.create();
+	var Produto = new Class.create();
+	Produto.prototype  = {
+			initialize: function()
+			{
+				this.Id 		= (arguments.length > 0) ? arguments[0].Id  	  : 0;
+				this.Url	 	= (arguments.length > 0) ? arguments[0].Url		  : "";
+				this.Valor 		= (arguments.length > 0) ? arguments[0].Valor	  : 0;
+				this.Nome  		= (arguments.length > 0) ? arguments[0].Nome	  : "";
+				this.Descricao 	= (arguments.length > 0) ? arguments[0].Descricao : "";
+			}
+	};
+	Carrinho.prototype = {
+			
+			initialize: function()
+			{
+				this.Produtos = new Object();
+				this.Produtos.items = [ ];
+				this.MeusProdutos = new Object();
+				this.MeusProdutos.items = [ ];
+				this.ARGS_CONTABLIZAR = null;
+				this.TOTAL = 0.00;
+				$this = this;
+			},
+			Produto: {
+						Add : function(item)
+						{
+							$this.Produtos.items.push(item);
+						}
+			},			
+			Contablizar: function(arg)
+			{
+				var $Produtos = $this.Produtos;
+				
+				$this.Produtos.items._each(function(produto)
+				{
+					var item = "item_" + produto.Id;
+					if(item == arg.Item)
+					{
+						if(arg.Acao == "A")
+						$this.Adicionar(produto);
+						else
+						$this.Remover(produto);
+					}
+				});
+				$this.ExibirMeusProdutos(arg);
+			},
+			Adicionar: function(arg)
+			{
+				var jahTem = false;
+				for(var i = 0; i < $this.MeusProdutos.items.length;i++)
+				{
+					var item = $this.MeusProdutos.items[i].Id;
+					if(item == arg.Id)
+					{
+						$this.MeusProdutos.items[i].Itens++;
+						jahTem = true;
+						break;
+					}
+				}
+				if(jahTem == false)
+				{
+					$this.MeusProdutos.items.push({Id:arg.Id,Url:arg.Url,Itens:1,Valor:arg.Valor});
+				}			
+			},
+			Remover: function(arg)
+			{
+				$this.MeusProdutos.items._each(function(produto)
+				{
+					var item =  produto.Id;
+					if(item == arg.Id)
+					{
+						produto.Itens--;
+						if(produto.Itens <= 0)
+						{
+							$this.MeusProdutos.items.pop(produto);
+						}
+					}
+				});
+			},
+			ExibirMeusProdutos: function(args)
+			{
+				this.TOTAL = 0;
+				var TagPedidos = $(args.IdTagPedidos);
+				Effect.BlindDown(args.IdTagPedidos, { duration: 0.8 }); 
+                
+
+				TagPedidos.update("");
+					
+				for(var i = 0; i <$this.MeusProdutos.items.length; i++)
+				{
+					var produto = $this.MeusProdutos.items[i];
+					var _valor = produto.Valor * produto.Itens;
+					this.TOTAL += _valor;
+					var Id = "item_"+ produto.Id;
+					var div = new Element('div',{ 'id': Id});
+					var h1  = new Element('h1',{'id':'h1'+Id}).update(produto.Nome);
+					var img = new Element('img',{'id':'img'+Id,'src':produto.Url,'class': args.CssItemPego });
+					Event.observe(img,'click',function()
+					{
+						$this.ARGS_CONTABLIZAR.Item = this.id.replace("img","");
+						$this.ARGS_CONTABLIZAR.Acao = "R";
+						$this.Contablizar($this.ARGS_CONTABLIZAR);	
+						
+					},false);
+					
+					var qtd = new Element('h4',{'id':'spam_valor'+Id}).update("Quantidade: (" + produto.Itens +")");
+					div.appendChild(h1);
+					div.appendChild(img);
+					div.appendChild(qtd);
+					TagPedidos.appendChild(div);
+				}
+				
+				if(this.TOTAL == 0)
+				{
+					$(args.IdTagTotal).update("");
+				}
+				$(args.IdTagTotal).update("R$ "+ this.TOTAL.toFixed(2));
+			},
+			Iniciar: function(args,acao)
+			{	  			 //args.CssItemPego 
+				$this.ConteudosLoja(args);
+	
+				Droppables.add(args.Carrinho, 
+				{
+					accept: args.CssItem, 
+					hoverclass:""+args.CssItem+"Drag", 
+					greedy: 'true', 
+					onDrop: function(ele) 
+					{ 
+						$this.ARGS_CONTABLIZAR = {Item:ele.id,Acao:'A',IdTagPedidos:args.IdTagPedidos,IdTagTotal:args.IdTagTotal,CssItemPego:args.CssItemPego};
+						$this.Contablizar($this.ARGS_CONTABLIZAR);				
+					}			
+				});
+			},
+       
+			ConteudosLoja : function(args)
+			{
+				var conteudoLoja = $(args.ConteudoLoja);
+				conteudoLoja.update("");
+				$this.Produtos.items._each(function(produto)
+				{
+					var Id = "item_"+ produto.Id;
+					var div = new Element('div',{'class': args.CssItem, 'id': Id});
+					var h1  = new Element('h1',{'id':'h1'+Id}).update(produto.Nome);
+					var img = new Element('img',{'id':'img'+Id,'src':produto.Url});
+					var val = new Element('div',{'id':'spam_valor'+Id}).update("<b>R$ " + produto.Valor.toFixed(2) +"</b>");
+					var des = new Element('div',{'id':'spam_valor'+Id}).update(produto.Descricao);
+					div.appendChild(h1);
+					div.appendChild(img);
+					div.appendChild(val);
+					div.appendChild(des);
+					conteudoLoja.appendChild(div);
+					new Draggable(Id, 
+						{
+							revert: 'true'
+						});
+				});	
+			}
+	}
+        /*aqui poem todo conteudo da loja todo produto cada linha de item e um produto so coloca mais copia a duas linhas sempre adicionar um produto
+        item = new Produto({Id:3,Url:"itens/prod_cell.jpg",Nome:"Celular Tabajara",Valor:891.10,Descricao:"celular legal..."});
+			carrinho.Produto.Add(item); e acabo	*/
+		Event.observe(window,'load',function()
+		{
+			var carrinho = new Carrinho();
+			//Produto 1
+            var item = new Produto({Id:1,Url:"itens/prod_blusa.jpg",Nome:"Blusa Fenix",Valor:56.30,Descricao:"blusa legal..."});
+			carrinho.Produto.Add(item);	
+			//Produto 2
+			item = new Produto({Id:2,Url:"itens/prod_note.jpg",Nome:"Note book CCE",Valor:1520.99,Descricao:"Notebook 5g..."});
+			carrinho.Produto.Add(item);	
+			//Produto 3
+			item = new Produto({Id:3,Url:"itens/prod_cell.jpg",Nome:"Celular Tabajara",Valor:891.10,Descricao:"celular legal..."});
+			carrinho.Produto.Add(item);	 
+			
+			carrinho.Iniciar({
+							Carrinho	   : "carrinho",
+							ConteudoLoja   : "loja",
+							CssItem		   : "item", 
+							CssItemPego	   : "itempego",
+							IdTagPedidos   : "pedidos",
+							IdTagTotal	   : "total",
+							Acao 		   : "A"
+							});
+		},false);
+		
+	</script>
+
+		
+	</body>
+</html>
